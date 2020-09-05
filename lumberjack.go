@@ -107,6 +107,11 @@ type Logger struct {
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
 
+	// String to write to the beginning of every new log file. Setting the
+	// prefix to a string longer than MaxSize will cause all writes to fail.
+	// The prefix must explicitly include a newline if one is desired.
+	Prefix string `json:"prefix" yaml:"prefix"`
+
 	size int64
 	file *os.File
 	mu   sync.Mutex
@@ -137,9 +142,10 @@ func (l *Logger) Write(p []byte) (n int, err error) {
 	defer l.mu.Unlock()
 
 	writeLen := int64(len(p))
-	if writeLen > l.max() {
+	prefixLen := int64(len(l.Prefix))
+	if writeLen+prefixLen > l.max() {
 		return 0, fmt.Errorf(
-			"write length %d exceeds maximum file size %d", writeLen, l.max(),
+			"write length %d exceeds maximum file size %d", writeLen, l.max()-prefixLen,
 		)
 	}
 
@@ -238,6 +244,12 @@ func (l *Logger) openNew() error {
 	}
 	l.file = f
 	l.size = 0
+
+	if l.Prefix != "" {
+		n, _ := l.file.Write([]byte(l.Prefix))
+		l.size += int64(n)
+	}
+
 	return nil
 }
 

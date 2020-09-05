@@ -688,6 +688,74 @@ func TestCompressOnResume(t *testing.T) {
 	fileCount(dir, 2, t)
 }
 
+func TestPrefix(t *testing.T) {
+	currentTime = fakeTime
+	megabyte = 1
+
+	prefix := "My file prefix\n" // len(prefix) = 15
+
+	dir := makeTempDir("TestPrefix", t)
+	defer os.RemoveAll(dir)
+
+	filename := logFile(dir)
+	l := &Logger{
+		Filename: filename,
+		MaxSize: 20, // len(prefix) + 5
+		Prefix: prefix,
+	}
+	defer l.Close()
+
+	b1 := "foo"
+	n, err := l.Write([]byte(b1))
+	isNil(err, t)
+	equals(len(b1), n, t)
+	existsWithContent(filename, []byte(prefix+b1), t)
+	fileCount(dir, 1, t)
+
+	newFakeTime()
+
+	b2 := "ba"
+	n, err = l.Write([]byte(b2))
+	isNil(err, t)
+	equals(len(b2), n, t)
+	existsWithContent(filename, []byte(prefix+b1+b2), t)
+	fileCount(dir, 1, t)
+
+	newFakeTime()
+
+	b3 := "r"
+	n, err = l.Write([]byte(b3))
+	isNil(err, t)
+	equals(len(b3), n, t)
+	existsWithContent(filename, []byte(prefix+b3), t)
+	fileCount(dir, 2, t)
+
+	newFakeTime()
+
+	b4 := "12345" // len(b4) == maxsize-len(prefix)
+	n, err = l.Write([]byte(b4))
+	isNil(err, t)
+	equals(len(b4), n, t)
+	existsWithContent(filename, []byte(prefix+b4), t)
+	fileCount(dir, 3, t)
+
+	newFakeTime()
+
+	b5 := "123456" // len(b5) > maxsize-len(prefix)
+	n, err = l.Write([]byte(b5))
+	notNil(err, t) // fails to write
+	equals(0, n, t)
+	existsWithContent(filename, []byte(prefix+b4), t)
+	fileCount(dir, 3, t)
+
+	newFakeTime()
+
+	err = l.Rotate()
+	isNil(err, t)
+	existsWithContent(filename, []byte(prefix), t)
+	fileCount(dir, 4, t)
+}
+
 func TestJson(t *testing.T) {
 	data := []byte(`
 {
