@@ -700,8 +700,8 @@ func TestPrefix(t *testing.T) {
 	filename := logFile(dir)
 	l := &Logger{
 		Filename: filename,
-		MaxSize: 20, // len(prefix) + 5
-		Prefix: prefix,
+		MaxSize:  20, // len(prefix) + 5
+		Prefix:   prefix,
 	}
 	defer l.Close()
 
